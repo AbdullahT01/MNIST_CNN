@@ -17,14 +17,29 @@ class Conv2D:
                 region = image[i: i + self.filter_size, j: j + self.filter_size]
                 yield region, i, j
 
+    # This function actually applies the convolution.
     def forward(self, input):
         self.last_input = input
         c, h, w = input.shape
-        assert c == 1
+        assert c == 1 # because we are using grayscale images
         output_dim = h - self.filter_size + 1
         output = np.zeros((self.num_filters, output_dim, output_dim))
 
+        #Loop over each filter (we'll apply each filter to the entire image).
         for f in range(self.num_filters):
             for region, i, j in self.iterate_regions(input[0]):
-                output[f, i, j] = np.sum(region * self.filters[f][0])
+                output[f, i, j] = np.sum(region * self.filters[f][0]) # this will basically place the convolved value, in the fth filter at the region i and j
         return output
+
+
+    def backward(self, d_out, learning_rate):
+        d_filters = np.zeros_like(self.filters)
+        d_input = np.zeros_like(self.last_input)
+
+        for f in range(self.num_filters):
+            for region, i, j in self.iterate_regions(self.last_input[0]):
+                d_filters[f][0] += d_out[f, i, j] * region
+                d_input[0, i:i+self.filter_size, j:j+self.filter_size] += d_out[f, i, j] * self.filters[f][0]
+
+        self.filters -= learning_rate * d_filters
+        return d_input
